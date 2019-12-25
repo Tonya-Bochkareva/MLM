@@ -1,0 +1,126 @@
+(int, int) get_source_address() {
+  var ds = get_data().begin_parse();
+  var a = ds~load_uint(32);
+  var b = ds~load_uint(256);
+  var c = ds~load_uint(3);
+  return (ds~load_int(8), ds~load_int(256));
+}
+
+int size(slice s) asm "SBITS";
+
+(int) send_bounty(slice in_msg, int msg_value) impure {
+  var ff = in_msg~load_uint(8);
+
+  var bounty = msg_value / 100; ;; 1%
+  ;; var ref = in_msg~load_slice(8 + 256);
+  var workchain_id = in_msg~load_int(8);
+  var address = in_msg~load_int(256);
+  var message_int = begin_cell()
+      ;; 0100 int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+      .store_uint(4, 4)
+      ;; src:MsgAddressInt addr_none$00 
+      .store_uint(0, 2)
+      ;; dest:MsgAddressInt addr_std$10 anycast:(Maybe Anycast)
+      .store_uint(4, 3)
+      ;; workchain_id:int8 address:bits256
+      .store_int(workchain_id, 8)
+      .store_int(address, 256)
+      ;; value:CurrencyCollection
+      .store_grams(bounty)
+      ;; ihr_fee:Grams fwd_fee:Grams created_lt:uint64 created_at:uint32
+      .store_uint(0, 9 + 64 + 32)
+      ;; init:(..) body(..)
+      .store_uint(0, 2)
+      .store_uint(0, 5)
+    .end_cell();
+  send_raw_message(message_int, 0);
+  return (msg_value - bounty);
+}
+
+() Op::transfer(slice in_msg, int msg_value) impure {
+  var grams = send_bounty(in_msg, msg_value);
+  var (workchain_id, address) = get_source_address();
+  var message_int = begin_cell()
+      ;; 0100 int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+      .store_uint(4, 4)
+      ;; src:MsgAddressInt addr_none$00 
+      .store_uint(0, 2)
+      ;; dest:MsgAddressInt addr_std$10 anycast:(Maybe Anycast)
+      .store_uint(4, 3)
+      ;; workchain_id:int8 address:bits256
+      .store_int(workchain_id, 8)
+      .store_int(address, 256)
+      ;; value:CurrencyCollection
+      .store_grams(grams)
+      ;; ihr_fee:Grams fwd_fee:Grams created_lt:uint64 created_at:uint32
+      .store_uint(0, 9 + 64 + 32)
+      ;; init:(..) body(..)
+      .store_uint(0, 2)
+      .store_uint(0, 5)
+    .end_cell();
+  send_raw_message(message_int, 0);
+}
+
+() Op::upgrade_code (slice in_msg) impure {
+  var new_code = in_msg~load_ref();
+  in_msg.end_parse();
+  set_code(new_code);
+}
+
+() recv_external(slice in_msg) {
+  var signature = in_msg~load_bits(512);
+  var msg_hash = slice_hash(in_msg);
+  var seqno = in_msg~load_uint(32);
+
+  ;; data contains seqno + public_key
+  var ds = begin_parse(get_data());
+  var (stored_seqno, public_key) = (ds~load_uint(32), ds~load_uint(256));
+  ;; prevent replay
+  throw_unless(33, stored_seqno == seqno);
+  throw_unless(34, check_signature(msg_hash, signature, public_key));
+  accept_message();
+
+  var action = in_msg~load_uint(4);
+  if (action == 1) {
+    Op::upgrade_code(in_msg);
+  } elseif (action == 2) {
+  }
+
+  var skip = ds~load_uint(3); ;; TODO ~load_msg_addr()
+  var source_workchain = ds~load_int(8);
+  var source_address = ds~load_uint(256);
+  set_data(
+    begin_cell()
+      .store_uint(stored_seqno + 1, 32)
+      .store_uint(public_key, 256)
+      .store_uint(skip, 3)
+      .store_int(source_workchain, 8)
+      .store_int(source_address, 256)
+    .end_cell()
+  );
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) {
+  var cs = in_msg_cell.begin_parse();
+  var flags = cs~load_uint(4);  ;; int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool
+  if (flags & 1) {
+    ;; ignore all bounced messages
+    return ();
+  }
+  if (in_msg.slice_empty?()) {
+    return ();
+  }
+
+  var op = in_msg~load_uint(32);
+  if (op == 0) {
+    return Op::transfer(in_msg, msg_value);
+  }
+}
+
+int seqno() method_id {
+  return get_data().begin_parse().preload_uint(32);
+}
+
+_ source_address() method_id {
+  return get_source_address();
+}
