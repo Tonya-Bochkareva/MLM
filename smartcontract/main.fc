@@ -121,6 +121,10 @@ int seqno() method_id {
   return get_data().begin_parse().preload_uint(32);
 }
 
+(int, int, int) version() method_id {
+  return (0, 0, 1);
+}
+
 _ source_address() method_id {
   return get_source_address();
 }

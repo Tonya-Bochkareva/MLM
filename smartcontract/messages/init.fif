@@ -1,30 +1,35 @@
 "TonUtil.fif" include
 "lib/cli.fif" include
 
-"output.pk" =: DEFAULT_OUTPUT_PK
-"addr.bin"  =: DEFAULT_OUTPUT_ADDR
-"output"    =: DEFAULT_OUTPUT_DIR
+"output.pk" =: OUTPUT_PK
+"addr.bin"  =: OUTPUT_ADDR
+"output"    =: OUTPUT_DIR
+-1          =: WC
 
 {
   ."[OPTIONS] <filename> <target>" cr
   ."Creates MLM smarcontract" cr cr
 
   ."  <filename>              smarcontract source code in fift" cr
-  ."  <target>                target smarcontract for transfering grams" cr cr
+  ."  <target>                target smarcontract for transfering grams" cr
+  ."                            example: 0f_YwajCy_2U753Ll8Z1b-ixE3JEX42zQ1e5uFu_ZbSIvRS0" cr cr
 
   ."OPTIONS:" cr
   ."  -k,--key output.pk      private key file" cr
-  ."                            default=" DEFAULT_OUTPUT_PK type cr
+  ."                            default: " OUTPUT_PK type cr
   ."  -a,--address addr.bin   file for storing scm address in binary format" cr
-  ."                            default=" DEFAULT_OUTPUT_ADDR type cr
+  ."                            default: " OUTPUT_ADDR type cr
   ."  -d,--dir dirname        output folder" cr
-  ."                            default=" DEFAULT_OUTPUT_DIR type
+  ."                            default: " OUTPUT_DIR type cr
+  ."  -w,--wc number          worchain id" cr
+  ."                            default: " WC .
 } : usage()
 
 {
   "-d" "--dir" 1 { =: OUTPUT_DIR } option-long()
   "-k" "--key" 1 { =: OUTPUT_PK } option-long()
-  "-a" "--address" 1 { =: OUTPUT_ADDRESS } option-long()
+  "-a" "--address" 1 { =: OUTPUT_ADDR } option-long()
+  "-w" "--wc" 1 { =: WC } option-long()
   1 { include =: SOURCE_CODE } nth-argument()
   2 { =: TARGET } nth-argument()
 } scan-args()
@@ -32,10 +37,6 @@
 2 < {
   show-usage()
 } if
-
-def? OUTPUT_DIR { @' OUTPUT_DIR } { DEFAULT_OUTPUT_DIR } cond constant OUTPUT_DIR
-def? OUTPUT_PK { @' OUTPUT_PK } { DEFAULT_OUTPUT_PK } cond constant OUTPUT_PK
-def? OUTPUT_ADDR { @' OUTPUT_ADDR } { DEFAULT_OUTPUT_ADDR } cond constant OUTPUT_ADDR
 
 OUTPUT_DIR "/" $+ OUTPUT_PK $+ constant OUTPUT_PK
 OUTPUT_DIR "/" $+ OUTPUT_ADDR $+ constant OUTPUT_ADDR
@@ -47,20 +48,20 @@ OUTPUT_DIR "/" $+ OUTPUT_ADDR $+ constant OUTPUT_ADDR
   b{001} s, TARGET $>smca 2drop addr,
   <b b{0} s, b> ref,
   <b null dict, b> ref,
-b> swap
+b>
 
 <b
   // split_depth:(Maybe (## 5)) special:(Maybe TickTock)
   b{00} s,                // nothing$0
   // code:(Maybe ^Cell)
   b{1} s,                 // just$1
-    swap ref,             // ^Cell
+    SOURCE_CODE ref,      // ^Cell
   b{1} s,                 // data:(Maybe ^Cell)
     swap ref,
   b{0} s,                 // library:(HashmapE 256 SimpleLib)
 b>
 
-dup hash ${WC} swap 2constant addr
+dup hash WC swap 2constant addr
 addr OUTPUT_ADDR save-address
 
 <b 0 32 u, 0 4 u, b>

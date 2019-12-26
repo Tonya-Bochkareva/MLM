@@ -2,6 +2,7 @@
 
 ### Usage
 
+* `make` - compile fift from fc
 * `make test` - run tests
 
 ### Thx to
