@@ -1,34 +1,35 @@
+#!/usr/bin/env -S fift -s
 "TonUtil.fif" include
 "lib/cli.fif" include
 
-"output.pk" =: OUTPUT_PK
-"addr.bin"  =: OUTPUT_ADDR
-"output"    =: OUTPUT_DIR
--1          =: WC
+"output/scm.bin"   =: OUTPUT_BOC
+"output/output.pk" =: OUTPUT_PK
+"output/addr.bin"  =: OUTPUT_ADDR
+Masterchain        =: WC
 
 {
-  ."[OPTIONS] <filename> <target>" cr
+  ."[OPTIONS] <file.fif> <scm_addr>" cr
   ."Creates MLM smarcontract" cr cr
 
-  ."  <filename>              smarcontract source code in fift" cr
-  ."  <target>                target smarcontract for transfering grams" cr
+  ."  <file.fif>              smarcontract source code in fift" cr
+  ."  <scm_addr>              target smarcontract for transfering grams" cr
   ."                            example: 0f_YwajCy_2U753Ll8Z1b-ixE3JEX42zQ1e5uFu_ZbSIvRS0" cr cr
 
   ."OPTIONS:" cr
+  ."  -o,--output boc         output boc file" cr
+  ."                            default: " OUTPUT_BOC type cr
   ."  -k,--key output.pk      private key file" cr
   ."                            default: " OUTPUT_PK type cr
   ."  -a,--address addr.bin   file for storing scm address in binary format" cr
   ."                            default: " OUTPUT_ADDR type cr
-  ."  -d,--dir dirname        output folder" cr
-  ."                            default: " OUTPUT_DIR type cr
   ."  -w,--wc number          worchain id" cr
   ."                            default: " WC .
 } : usage()
 
 {
-  "-d" "--dir" 1 { =: OUTPUT_DIR } option-long()
-  "-k" "--key" 1 { =: OUTPUT_PK } option-long()
   "-a" "--address" 1 { =: OUTPUT_ADDR } option-long()
+  "-k" "--key" 1 { =: OUTPUT_PK } option-long()
+  "-o" "--output" 1 { =: OUTPUT_BOC } option-long()
   "-w" "--wc" 1 { =: WC } option-long()
   1 { include =: SOURCE_CODE } nth-argument()
   2 { =: TARGET } nth-argument()
@@ -37,9 +38,6 @@
 2 < {
   show-usage()
 } if
-
-OUTPUT_DIR "/" $+ OUTPUT_PK $+ constant OUTPUT_PK
-OUTPUT_DIR "/" $+ OUTPUT_ADDR $+ constant OUTPUT_ADDR
 
 <b
   0 32 u, // seqno
@@ -92,3 +90,6 @@ cr
 ."Smart contract addr: " addr .addr cr
 ."Smart contract non-bounceable: " addr 7 .Addr cr
 ."Smart contract bounceable: " addr 6 .Addr cr
+
+2 boc+>B OUTPUT_BOC tuck B>file
+."Boc is generated: " OUTPUT_BOC type cr
