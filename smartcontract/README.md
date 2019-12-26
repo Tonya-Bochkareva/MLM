@@ -6,4 +6,5 @@
 
 ### Thx to
 
-* [Serokell.io](https://contest.com/blockchain/entry404) for great Fift dev kit
+* [Serokell.io](https://contest.com/blockchain/entry404) for Fift Test Kit
+* [Hip Hyena](https://contest.com/blockchain/entry351) for Fift cmd parse utils
